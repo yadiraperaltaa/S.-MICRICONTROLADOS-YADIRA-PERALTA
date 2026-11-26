@@ -1,0 +1,118 @@
+#include <ESP32Servo.h>
+
+// OBJETOS
+Servo tapa;
+
+// PINES
+#define TRIG 23
+#define ECHO 22
+#define SERVO_PIN 18
+
+#define LED_VERDE 19
+#define LED_AMARILLO 21
+
+// CONFIGURACION
+const int DISTANCIA_ABRIR = 20;
+
+const int ANGULO_CERRADO = 0;
+const int ANGULO_ABIERTO = 90;
+
+const unsigned long TIEMPO_ABIERTO = 3000;
+
+bool tapaAbierta = false;
+unsigned long tiempoDeteccion = 0;
+
+// MEDIR DISTANCIA
+float medirDistancia() {
+
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  long duracion = pulseIn(ECHO, HIGH, 30000);
+
+  if (duracion == 0) {
+    return 999;
+  }
+
+  return duracion * 0.0343 / 2;
+}
+
+// ABRIR TAPA
+void abrirTapa() {
+
+  tapa.write(ANGULO_ABIERTO);
+
+  digitalWrite(LED_VERDE, HIGH);
+  digitalWrite(LED_AMARILLO, LOW);
+
+  tapaAbierta = true;
+  tiempoDeteccion = millis();
+
+  Serial.println("BASURERO ABIERTO");
+}
+
+// CERRAR TAPA
+void cerrarTapa() {
+
+  tapa.write(ANGULO_CERRADO);
+
+  digitalWrite(LED_VERDE, LOW);
+  digitalWrite(LED_AMARILLO, HIGH);
+
+  tapaAbierta = false;
+
+  Serial.println("BASURERO CERRADO");
+}
+
+// CONFIGURACION INICIAL
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+
+  pinMode(LED_VERDE, OUTPUT);
+  pinMode(LED_AMARILLO, OUTPUT);
+
+  tapa.setPeriodHertz(50);
+  tapa.attach(SERVO_PIN, 500, 2400);
+
+  tapa.write(ANGULO_CERRADO);
+
+  digitalWrite(LED_VERDE, LOW);
+  digitalWrite(LED_AMARILLO, HIGH);
+
+  Serial.println("BASURERO AUTOMATICO LISTO");
+}
+
+// PROGRAMA PRINCIPAL
+void loop() {
+
+  float distancia = medirDistancia();
+
+  Serial.print("Distancia: ");
+  Serial.print(distancia);
+  Serial.println(" cm");
+
+  if (distancia <= DISTANCIA_ABRIR) {
+
+    if (!tapaAbierta) {
+      abrirTapa();
+    }
+
+    tiempoDeteccion = millis();
+  }
+
+  if (tapaAbierta &&
+      millis() - tiempoDeteccion >= TIEMPO_ABIERTO) {
+
+    cerrarTapa();
+  }
+
+  delay(100);
+}
